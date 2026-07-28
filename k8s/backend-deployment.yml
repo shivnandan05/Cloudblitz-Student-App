@@ -1,0 +1,31 @@
+# backend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  namespace: cloudblitz
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: mayurpandit25/cloudblitz-backend:latest
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: docker
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:mysql://mysql-service:3306/student_db?useSSL=false&allowPublicKeyRetrieval=true
+        - name: SPRING_DATASOURCE_USERNAME
+          value: admin
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: admin123
+        ports:
+        - containerPort: 8080
+

@@ -1,0 +1,75 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKERHUB_USER = "mayurpandit25"
+        BACKEND_IMAGE  = "cloudblitz-backend"
+        FRONTEND_IMAGE = "cloudblitz-frontend"
+        DOCKER_PAT_ID  = "dockerhub-credentials-id"
+        KUBECONFIG_ID  = "kubeconfig"
+    }
+
+    stages {
+
+        stage('Clone Repository') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/mayurpandit25/cloudblitz-student-app.git'
+            }
+        }
+
+        stage('Build Docker Images') {
+            steps {
+                sh '''
+                docker build -t ${DOCKERHUB_USER}/${BACKEND_IMAGE}:latest backend
+                docker build -t ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:latest frontend
+                '''
+            }
+        }
+
+        stage('Docker Login using PAT') {
+            steps {
+                withCredentials([string(
+                    credentialsId: "${DOCKER_PAT_ID}",
+                    variable: 'DOCKER_PAT'
+                )]) {
+                    sh '''
+                    echo $DOCKER_PAT | docker login -u ${DOCKERHUB_USER} --password-stdin
+                    '''
+                }
+            }
+        }
+
+        stage('Push Images to Docker Hub') {
+            steps {
+                sh '''
+                docker push ${DOCKERHUB_USER}/${BACKEND_IMAGE}:latest
+                docker push ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:latest
+                '''
+            }
+        }
+
+        stage('Deploy to Kubernetes (Minikube)') {
+            steps {
+                withCredentials([file(
+                    credentialsId: "${KUBECONFIG_ID}",
+                    variable: 'KUBECONFIG'
+                )]) {
+                    sh '''
+                    kubectl apply -f k8s/namespace.yml
+                    kubectl apply -f k8s/
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ CI/CD Pipeline Executed Successfully!"
+        }
+        failure {
+            echo "❌ CI/CD Pipeline Failed"
+        }
+    }
+}
